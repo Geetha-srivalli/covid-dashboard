@@ -1,6 +1,6 @@
 # COVID-19 Data Dashboard
 
-A beginner-friendly interactive Streamlit app for exploring a COVID-19 workbook. Its six modules are Overview, Data Analysis, Country Details, World Map, Upload & Preview, and Data & About. Analysis includes daily changes, recovery and case-fatality rates, country/region comparisons, and CSV export.
+A beginner-friendly interactive Streamlit app for exploring a COVID-19 workbook. Its six sections appear as tabs beneath the dashboard title: Overview, Data Analysis, Country Details, World Map, Upload & Preview, and Data & About. Large KPI values are compactly formatted, with the exact count available by hovering over a card. Analysis includes daily changes, recovery and case-fatality rates, country/region comparisons, and CSV export.
 
 ## Run it on Windows
 
@@ -32,4 +32,4 @@ Confirmed, deaths, recovered, and active are cumulative snapshots. KPI cards and
 
 ## Visitor uploads
 
-Visitors can upload their own CSV or Excel file and use the dashboard modules to explore it. An upload is temporary to that visitor's app session; it does not replace or alter the shared workbook and is not written to a database.
+Visitors can upload their own CSV or Excel file and use the dashboard sections to explore it. The preview starts at the newest available date and ranks countries by confirmed cases, while retaining legitimate zeros. An upload is temporary to that visitor's app session; it does not replace or alter the shared workbook and is not written to a database.

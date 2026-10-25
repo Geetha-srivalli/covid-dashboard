@@ -141,6 +141,19 @@ def moneyless_number(value: float | int) -> str:
     return f"{int(value):,}"
 
 
+def compact_number(value: float | int) -> str:
+    """Keep large KPI values readable while showing the exact value on hover."""
+    number = float(value)
+    absolute = abs(number)
+    if absolute >= 1_000_000_000:
+        return f"{number / 1_000_000_000:.2f}B"
+    if absolute >= 1_000_000:
+        return f"{number / 1_000_000:.2f}M"
+    if absolute >= 10_000:
+        return f"{number / 1_000:.1f}K"
+    return f"{int(number):,}"
+
+
 st.markdown(
     """
     <style>
@@ -172,10 +185,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Keep all six modules in a horizontal tab bar beneath the dashboard title.
+module_tabs = st.tabs(MODULES)
+
 with st.sidebar:
     st.title("Dashboard setup")
-    st.caption("Choose a module, filter the data, or upload your own file.")
-    module = st.radio("Modules", MODULES, index=0)
+    st.caption("Adjust the data filters or upload a dataset for your session. Choose a dashboard section from the tabs below the title.")
     st.divider()
     uploaded = st.file_uploader(
         "Use your own COVID dataset",
@@ -257,7 +272,8 @@ def show_kpis(totals: pd.Series) -> None:
     columns = st.columns(4)
     labels = [("Confirmed", "confirmed"), ("Deaths", "deaths"), ("Recovered", "recovered"), ("Active", "active")]
     for column, (label, field) in zip(columns, labels):
-        column.metric(label, moneyless_number(totals[field]))
+        exact_value = moneyless_number(totals[field])
+        column.metric(label, compact_number(totals[field]), help=f"Exact value: {exact_value}")
 
 
 def chart_layout(fig, height: int | None = None):
@@ -270,7 +286,7 @@ def chart_layout(fig, height: int | None = None):
     return fig
 
 
-if module == "Overview":
+with module_tabs[0]:
     show_kpis(latest_totals)
     st.markdown("### Trends over time")
     trend = make_trend(filtered, METRICS[:3])
@@ -296,7 +312,7 @@ if module == "Overview":
     region_fig.update_layout(xaxis_title="WHO region", yaxis_title="People", legend_title="Metric")
     right.plotly_chart(chart_layout(region_fig), use_container_width=True)
 
-elif module == "Data Analysis":
+with module_tabs[1]:
     show_kpis(latest_totals)
     confirmed = latest_totals["confirmed"]
     case_fatality = latest_totals["deaths"] / confirmed * 100 if confirmed else None
@@ -329,7 +345,7 @@ elif module == "Data Analysis":
     csv_data = filtered.sort_values(["date", "country"]).to_csv(index=False).encode("utf-8")
     st.download_button("Download filtered data (CSV)", data=csv_data, file_name=f"covid_filtered_{latest_date:%Y%m%d}.csv", mime="text/csv")
 
-elif module == "Country Details":
+with module_tabs[2]:
     country_choices = sorted(filtered["country"].unique().tolist())
     selected_country = st.selectbox("Choose a country", country_choices)
     country_data = filtered[filtered["country"] == selected_country].sort_values("date")
@@ -347,7 +363,7 @@ elif module == "Country Details":
     daily_fig.update_layout(xaxis_title="Date", yaxis_title="New cases")
     st.plotly_chart(chart_layout(daily_fig), use_container_width=True)
 
-elif module == "World Map":
+with module_tabs[3]:
     st.markdown(f"### Country comparison on {latest_date.strftime('%d %b %Y')}")
     map_metric = st.selectbox("Map measure", METRICS, format_func=lambda item: item.title())
     map_data = latest_rows.groupby("country", as_index=False)[METRICS].sum()
@@ -367,7 +383,7 @@ elif module == "World Map":
     st.plotly_chart(map_fig, use_container_width=True)
     st.caption("Map colors use the latest cumulative snapshot in your current filters. Some territories may not match the map's country-name list.")
 
-elif module == "Upload & Preview":
+with module_tabs[4]:
     st.markdown("### Explore your own dataset")
     st.write("Use **Use your own COVID dataset** in the left sidebar. Choose a CSV or Excel workbook; if it has multiple sheets, choose the worksheet below the upload control. The dashboard modules will then use your selected file.")
     st.info("Your upload is only used for your current visit. It does not replace or edit the shared project workbook, and other visitors cannot see your upload.")
@@ -379,10 +395,17 @@ elif module == "Upload & Preview":
     summary_cols[3].metric("Last date", data["date"].max().strftime("%d %b %Y"))
     st.markdown("#### Required columns and data check")
     st.write("Required: date, country, confirmed, deaths, recovered. WHO region, active, and daily measures are used when present; daily measures are calculated from cumulative records if absent.")
-    st.dataframe(data.head(100), use_container_width=True, hide_index=True)
-    st.caption("Preview shows up to 100 rows. Zero values are valid and are kept.")
+    preview_date = st.selectbox(
+        "Preview date",
+        sorted(data["date"].dt.date.unique(), reverse=True),
+        format_func=lambda day: day.strftime("%d %b %Y"),
+        help="The latest date is selected first, so the preview shows the newest snapshot rather than the dataset's early zero-case days.",
+    )
+    preview = data[data["date"].dt.date == preview_date].sort_values("confirmed", ascending=False)
+    st.dataframe(preview.head(100), use_container_width=True, hide_index=True)
+    st.caption(f"Showing up to 100 countries on {preview_date:%d %b %Y}, ranked by confirmed cases. Zero values are valid and are kept.")
 
-elif module == "Data & About":
+with module_tabs[5]:
     source_tab, definitions_tab, about_tab = st.tabs(["Data sources", "Definitions", "About this project"])
     with source_tab:
         st.subheader("Current data source")
